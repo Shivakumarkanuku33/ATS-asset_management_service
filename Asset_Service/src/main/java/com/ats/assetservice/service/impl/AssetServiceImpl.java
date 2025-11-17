@@ -12,11 +12,11 @@ import com.ats.assetservice.service.AuditLogService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,11 +29,15 @@ public class AssetServiceImpl implements AssetService {
 	@Override
 	public AssetResponse createAsset(AssetRequest request) {
 
-		if (assetRepository.existsByAssetTag(request.getAssetTag())) {
-			throw new ResourceAlreadyExistsException("Asset tag already exists");
-		}
+//		if (assetRepository.existsByAssetTag(request.getAssetTag())) {
+//			throw new ResourceAlreadyExistsException("Asset tag already exists");
+//		}
 
 		Asset asset = mapper.toEntity(request);
+		
+		// Auto-generate unique assetTag
+	    asset.setAssetTag("AST-" + UUID.randomUUID().toString().substring(0, 8));
+
 		asset.setStatus("AVAILABLE");
 		asset.setCreatedAt(LocalDateTime.now());
 		asset.setUpdatedAt(LocalDateTime.now());
@@ -105,4 +109,26 @@ public class AssetServiceImpl implements AssetService {
 	    assetRepository.delete(asset); 
 		
 	}
+	
+	
+// System Generated assetTag
+//	@Override
+//	public AssetResponse createAssetResponse(AssetRequest request) {
+//		
+//		Asset asset = mapper.toEntity(request);
+//
+//	    // Auto-generate assetTag
+//		asset.setAssetTag("AST-" + UUID.randomUUID().toString().substring(0, 8));
+//		
+//
+//	    asset.setStatus("AVAILABLE");
+//	    asset.setCreatedAt(LocalDateTime.now());
+//	    asset.setUpdatedAt(LocalDateTime.now());
+//
+//	    Asset saved = assetRepository.save(asset);
+//
+//	    auditLogService.logCreate(saved);
+//
+//	    return mapper.toResponse(saved);
+//	}
 }

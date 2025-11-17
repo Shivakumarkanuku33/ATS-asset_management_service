@@ -17,4 +17,6 @@ public interface AssetService {
     void softDelete(Long id);
     
     void hardDelete(Long id);
+    
+//     AssetResponse createAssetResponse(AssetRequest request);
 }

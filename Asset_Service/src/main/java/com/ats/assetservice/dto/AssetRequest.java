@@ -8,8 +8,8 @@ import lombok.Data;
 @Data
 public class AssetRequest {
 
-    @NotBlank
-    private String assetTag;
+//    @NotBlank
+//    private String assetTag;
 
     @NotBlank
     private String name;

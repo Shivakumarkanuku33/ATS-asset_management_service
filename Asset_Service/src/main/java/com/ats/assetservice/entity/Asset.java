@@ -9,10 +9,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
 
 @Entity
-@Table(name = "assets_tbl")
+@Table(name = "assets_tbl",uniqueConstraints = @UniqueConstraint(columnNames = "asset_tag"))
 @Data
 public class Asset {
 
@@ -20,7 +21,7 @@ public class Asset {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "asset_tag", nullable = false, unique = true)
     private String assetTag;
 
     private String name;
