@@ -71,25 +71,53 @@ public class AuditLogServiceImpl implements AuditLogService {
 		saveLog(asset.getId(), "DELETE", "ALL", asset.toString(), null, "system");
 	}
 
-	private void saveLog(Long assetId, String action, String field, String oldValue, String newValue, String user) {
+////	private void saveLog(Long assetId, String action, String field, String oldValue, String newValue, String user) {
+////
+////		try {
+////			
+////			 AssetAuditLog log = AssetAuditLog.builder()
+////		                .assetId(assetId)
+////		                .action(action)
+////		                .fieldName(field)
+////		                .oldValue(oldValue)
+////		                .newValue(newValue)
+////		                .changedBy(user)
+////		                .changedAt(LocalDateTime.now())
+////		                .build();
+////
+////			repository.save(log);
+////			
+////		} catch (Exception e) {
+////			System.err.println("Audit log failed: " + e.getMessage());
+////		}
+//		
+//	}
 
-		try {
-			
-			 AssetAuditLog log = AssetAuditLog.builder()
-		                .assetId(assetId)
-		                .action(action)
-		                .fieldName(field)
-		                .oldValue(oldValue)
-		                .newValue(newValue)
-		                .changedBy(user)
-		                .changedAt(LocalDateTime.now())
-		                .build();
+	@Override
+    public void logStatusChange(Asset asset, String reason) {
+        // Log the new status
+        saveLog(asset.getId(), "STATUS_CHANGE", "status", null, asset.getStatus(), "system");
 
-			repository.save(log);
-			
-		} catch (Exception e) {
-			System.err.println("Audit log failed: " + e.getMessage());
-		}
-		
-	}
+        // Optionally log reason separately
+        if (reason != null && !reason.isBlank()) {
+            saveLog(asset.getId(), "STATUS_CHANGE_REASON", "reason", null, reason, "system");
+        }
+    }
+
+    private void saveLog(Long assetId, String action, String field, String oldValue, String newValue, String user) {
+        try {
+            AssetAuditLog log = AssetAuditLog.builder()
+                    .assetId(assetId)
+                    .action(action)
+                    .fieldName(field)
+                    .oldValue(oldValue)
+                    .newValue(newValue)
+                    .changedBy(user)
+                    .changedAt(LocalDateTime.now())
+                    .build();
+            repository.save(log);
+        } catch (Exception e) {
+            System.err.println("Audit log failed: " + e.getMessage());
+        }
+    }
 }

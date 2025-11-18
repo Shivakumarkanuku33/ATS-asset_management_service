@@ -1,43 +1,8 @@
 package com.ats.assetservice.document.service.impl;
 
-//import java.io.IOException;
-//import java.io.InputStream;
-//import java.time.LocalDate;
-//import java.time.ZoneId;
-//import java.util.ArrayList;
-//import java.util.Date;
-//import java.util.HashMap;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.UUID;
-//
-//import org.apache.commons.compress.archivers.dump.InvalidFormatException;
-//import org.apache.poi.ss.usermodel.Cell;
-//import org.apache.poi.ss.usermodel.CellType;
-//import org.apache.poi.ss.usermodel.DateUtil;
-//import org.apache.poi.ss.usermodel.Row;
-//import org.apache.poi.ss.usermodel.Sheet;
-//import org.apache.poi.ss.usermodel.Workbook;
-//import org.apache.poi.ss.usermodel.WorkbookFactory;
-//import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-//import org.springframework.stereotype.Service;
-//import org.springframework.web.multipart.MultipartFile;
-//
-//import com.ats.assetservice.document.service.ExcelService;
-//import com.ats.assetservice.entity.Asset;
-//import com.ats.assetservice.entity.AssetStatus;
-//import com.ats.assetservice.mapper.AssetMapper;
-//import com.ats.assetservice.repository.AssetRepository;
-//import com.ats.assetservice.service.AuditLogService;
-//
-//import jakarta.servlet.http.HttpServletResponse;
-//import jakarta.transaction.Transactional;
-//import lombok.RequiredArgsConstructor;
-
 import com.ats.assetservice.entity.Asset;
 import com.ats.assetservice.entity.AssetStatus;
 import com.ats.assetservice.document.service.ExcelService;
-//import com.ats.assetservice.dto.AssetRequest;
 import com.ats.assetservice.mapper.AssetMapper;
 import com.ats.assetservice.repository.AssetRepository;
 import com.ats.assetservice.service.AuditLogService;
@@ -48,7 +13,6 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.commons.compress.archivers.dump.InvalidFormatException;
-//import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,19 +57,14 @@ public class ExcelServiceImpl implements ExcelService {
 
             int batchSize = 50;
             List<Asset> batch = new ArrayList<>(batchSize);
-            // Assume first row is header. Validate header optionally.
+
+            // Read headers
             Row headerRow = sheet.getRow(0);
             Map<String, Integer> headerIndex = new HashMap<>();
             for (int c = 0; c < headerRow.getLastCellNum(); c++) {
                 Cell cell = headerRow.getCell(c);
                 if (cell != null) {
                     headerIndex.put(cell.getStringCellValue().trim(), c);
-                }
-            }
-            // Basic header check (optional)
-            for (String h : HEADERS) {
-                if (!headerIndex.containsKey(h)) {
-                    // continue, but warn
                 }
             }
 
@@ -115,18 +74,43 @@ public class ExcelServiceImpl implements ExcelService {
 
                 try {
                     Asset asset = parseRowToAsset(row, headerIndex);
-                    // if assetTag empty, generate system tag
+
+                    // --- EXISTING ASSET CHECK & LIFECYCLE UPDATE ---
+                    Optional<Asset> existing = assetRepository.findByAssetTag(asset.getAssetTag());
+                    if (existing.isPresent()) {
+                        Asset db = existing.get();
+
+                        // Update lifecycle/status if provided in Excel
+                        if (asset.getStatus() != null && !asset.getStatus().isBlank()) {
+                            db.setStatus(asset.getStatus());
+                        }
+
+                        // Update other fields
+                        db.setName(asset.getName());
+                        db.setCategory(asset.getCategory());
+                        db.setVendor(asset.getVendor());
+                        db.setDescription(asset.getDescription());
+                        db.setLocationId(asset.getLocationId());
+                        db.setPurchaseCost(asset.getPurchaseCost());
+                        db.setPurchaseDate(asset.getPurchaseDate());
+                        db.setWarrantyMonths(asset.getWarrantyMonths());
+
+                        db.setUpdatedAt(java.time.LocalDateTime.now());
+
+                        batch.add(db);
+                        continue; // Skip new asset logic
+                    }
+
+                    // --- NEW ASSET ---
                     if (asset.getAssetTag() == null || asset.getAssetTag().isBlank()) {
                         asset.setAssetTag("AST-" + UUID.randomUUID().toString().substring(0, 8));
-                    } else {
-                        // if provided, ensure uniqueness
-                        if (assetRepository.existsByAssetTag(asset.getAssetTag())) {
-                            throw new IllegalArgumentException("assetTag already exists: " + asset.getAssetTag());
-                        }
                     }
-                    // default status
-                    if (asset.getStatus() == null || asset.getStatus().isBlank())
+
+                    // Default lifecycle status
+                    if (asset.getStatus() == null || asset.getStatus().isBlank()) {
                         asset.setStatus(AssetStatus.AVAILABLE.name());
+                    }
+
                     asset.setIsActive(true);
                     asset.setCreatedAt(java.time.LocalDateTime.now());
                     asset.setUpdatedAt(java.time.LocalDateTime.now());
@@ -135,10 +119,10 @@ public class ExcelServiceImpl implements ExcelService {
 
                     if (batch.size() == batchSize) {
                         assetRepository.saveAll(batch);
-                        // log creates for each
                         batch.forEach(a -> auditLogService.logCreate(a));
                         batch.clear();
                     }
+
                 } catch (Exception ex) {
                     errors.add("Row " + (r + 1) + " : " + ex.getMessage());
                 }
@@ -163,9 +147,15 @@ public class ExcelServiceImpl implements ExcelService {
         asset.setName(getStringCell(row, headerIndex.get("name")));
         asset.setCategory(getStringCell(row, headerIndex.get("category")));
 
+        // --- LIFECYCLE PARSING ---
         String statusStr = getStringCell(row, headerIndex.get("status"));
         if (statusStr != null && !statusStr.isBlank()) {
-            asset.setStatus(AssetStatus.from(statusStr).name());
+            try {
+                AssetStatus lifecycle = AssetStatus.valueOf(statusStr.trim().toUpperCase());
+                asset.setStatus(lifecycle.name());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid lifecycle/status: " + statusStr);
+            }
         }
 
         // purchaseDate as yyyy-MM-dd or Excel date
@@ -274,7 +264,6 @@ public class ExcelServiceImpl implements ExcelService {
                 row.createCell(9).setCellValue(a.getLocationId() != null ? a.getLocationId() : 0);
             }
 
-            // write response
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setHeader("Content-Disposition", "attachment; filename=assets.xlsx");
             workbook.write(response.getOutputStream());

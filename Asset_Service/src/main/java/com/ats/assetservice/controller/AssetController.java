@@ -2,6 +2,8 @@ package com.ats.assetservice.controller;
 
 import com.ats.assetservice.dto.AssetRequest;
 import com.ats.assetservice.dto.AssetResponse;
+import com.ats.assetservice.dto.StatusUpdateRequest;
+import com.ats.assetservice.entity.Asset;
 import com.ats.assetservice.service.AssetService;
 
 import lombok.RequiredArgsConstructor;
@@ -58,10 +60,15 @@ public class AssetController {
     }
     
     @PatchMapping("/{id}/status")
-    public ResponseEntity<AssetResponse> updateStatus(
+    public ResponseEntity<?> updateAssetStatus(
             @PathVariable Long id,
-            @RequestParam String status) {
-        return ResponseEntity.ok(assetService.changeStatus(id, status));
+            @RequestBody StatusUpdateRequest request) {
+        try {
+            Asset updated = assetService.updateAssetStatus(id, request.getStatus(), request.getReason());
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
     
     }

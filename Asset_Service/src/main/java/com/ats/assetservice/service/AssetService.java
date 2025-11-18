@@ -2,6 +2,8 @@ package com.ats.assetservice.service;
 
 import com.ats.assetservice.dto.AssetRequest;
 import com.ats.assetservice.dto.AssetResponse;
+import com.ats.assetservice.entity.Asset;
+
 import org.springframework.data.domain.Page;
 
 public interface AssetService {
@@ -17,6 +19,6 @@ public interface AssetService {
     void softDelete(Long id);
     
     void hardDelete(Long id);
-    
-    AssetResponse changeStatus(Long id, String newStatus);
+        
+    Asset updateAssetStatus(Long assetId, String status, String description);
 }

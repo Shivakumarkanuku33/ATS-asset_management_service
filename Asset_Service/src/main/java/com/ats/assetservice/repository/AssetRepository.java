@@ -1,5 +1,7 @@
 package com.ats.assetservice.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -9,6 +11,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long>, JpaSpecific
 
 	boolean existsByAssetTag(String assetTag);
 
-//    Page<Asset> findAllByIsActiveTrue(Pageable pageable);
+	
+	Optional<Asset> findByAssetTag(String assetTag);
 	
 }

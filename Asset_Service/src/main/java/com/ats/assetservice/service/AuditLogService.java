@@ -10,4 +10,6 @@ public interface AuditLogService {
     void logUpdate(Asset oldAsset, AssetRequest newData);
 
     void logDelete(Asset asset);
+    
+    void logStatusChange(Asset asset, String reason);
 }
