@@ -10,11 +10,21 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+//@Builder
 @Entity
 @Table(name = "assets_tbl",uniqueConstraints = @UniqueConstraint(columnNames = "asset_tag"))
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public class Asset {
 
     @Id
@@ -32,6 +42,8 @@ public class Asset {
     private String vendor;
     private Integer warrantyMonths;
     private String description;
+    
+    private Long locationId;
 
     private Boolean isActive = true;
 

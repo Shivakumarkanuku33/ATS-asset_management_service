@@ -13,7 +13,10 @@ import com.ats.assetservice.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -109,26 +112,17 @@ public class AssetServiceImpl implements AssetService {
 	    assetRepository.delete(asset); 
 		
 	}
-	
-	
-// System Generated assetTag
-//	@Override
-//	public AssetResponse createAssetResponse(AssetRequest request) {
-//		
-//		Asset asset = mapper.toEntity(request);
-//
-//	    // Auto-generate assetTag
-//		asset.setAssetTag("AST-" + UUID.randomUUID().toString().substring(0, 8));
-//		
-//
-//	    asset.setStatus("AVAILABLE");
-//	    asset.setCreatedAt(LocalDateTime.now());
-//	    asset.setUpdatedAt(LocalDateTime.now());
-//
-//	    Asset saved = assetRepository.save(asset);
-//
-//	    auditLogService.logCreate(saved);
-//
-//	    return mapper.toResponse(saved);
-//	}
+
+	@Override
+	public AssetResponse changeStatus(Long id, String newStatus) {
+	    Asset asset = assetRepository.findById(id)
+	            .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
+	    String oldStatus = asset.getStatus();
+	    asset.setStatus(newStatus);
+	    assetRepository.save(asset);
+
+	    // Log the status change
+	    auditLogService.logUpdate(asset, AssetRequest.builder().status(newStatus).build());
+	    return mapper.toResponse(asset);
+	}
 }

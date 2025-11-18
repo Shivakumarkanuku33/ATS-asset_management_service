@@ -18,5 +18,5 @@ public interface AssetService {
     
     void hardDelete(Long id);
     
-//     AssetResponse createAssetResponse(AssetRequest request);
+    AssetResponse changeStatus(Long id, String newStatus);
 }

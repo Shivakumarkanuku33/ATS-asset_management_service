@@ -7,7 +7,6 @@ import com.ats.assetservice.repository.AssetAuditLogRepository;
 import com.ats.assetservice.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,13 +28,42 @@ public class AuditLogServiceImpl implements AuditLogService {
 	public void logUpdate(Asset oldAsset, AssetRequest newData) {
 
 		if (!oldAsset.getName().equals(newData.getName())) {
-			saveLog(oldAsset.getId(), "UPDATE", "name", oldAsset.getName(), newData.getName(), "system");
-		}
+            saveLog(oldAsset.getId(), "UPDATE", "name",
+                    oldAsset.getName(), newData.getName(), "system");
+        }
+        if (!oldAsset.getCategory().equals(newData.getCategory())) {
+            saveLog(oldAsset.getId(), "UPDATE", "category",
+                    oldAsset.getCategory(), newData.getCategory(), "system");
+        }
+        
+        if (!oldAsset.getStatus().equals(newData.getStatus())) {
+            saveLog(oldAsset.getId(), "UPDATE", "status",
+                    oldAsset.getStatus(), newData.getStatus(), "system");
+        }
+        
+        if ((oldAsset.getVendor() != null && !oldAsset.getVendor().equals(newData.getVendor()))
+            || (oldAsset.getVendor() == null && newData.getVendor() != null)) {
+            saveLog(oldAsset.getId(), "UPDATE", "vendor",
+                    oldAsset.getVendor(), newData.getVendor(), "system");
+        }
+        
+        if (valueChanged(oldAsset.getDescription(), newData.getDescription())) {
+            saveLog(oldAsset.getId(), "UPDATE", "description",
+                    oldAsset.getDescription(), newData.getDescription(), "system");
+        }
 
-		if (!oldAsset.getCategory().equals(newData.getCategory())) {
-			saveLog(oldAsset.getId(), "UPDATE", "category", oldAsset.getCategory(), newData.getCategory(), "system");
-		}
+        if (valueChanged(oldAsset.getPurchaseCost(), newData.getPurchaseCost())) {
+            saveLog(oldAsset.getId(), "UPDATE", "purchaseCost",
+                    String.valueOf(oldAsset.getPurchaseCost()),
+                    String.valueOf(newData.getPurchaseCost()),
+                    "system");
+        }
 	}
+        
+        private boolean valueChanged(Object oldValue, Object newValue) {
+            return (oldValue != null && !oldValue.equals(newValue))
+                    || (oldValue == null && newValue != null);
+        }
 
 	@Override
 	public void logDelete(Asset asset) {
@@ -47,14 +75,15 @@ public class AuditLogServiceImpl implements AuditLogService {
 
 		try {
 			
-			AssetAuditLog log = new AssetAuditLog();
-			log.setAssetId(assetId);
-			log.setAction(action);
-			log.setFieldName(field);
-			log.setOldValue(oldValue);
-			log.setNewValue(newValue);
-			log.setChangedBy(user);
-			log.setChangedAt(LocalDateTime.now());
+			 AssetAuditLog log = AssetAuditLog.builder()
+		                .assetId(assetId)
+		                .action(action)
+		                .fieldName(field)
+		                .oldValue(oldValue)
+		                .newValue(newValue)
+		                .changedBy(user)
+		                .changedAt(LocalDateTime.now())
+		                .build();
 
 			repository.save(log);
 			

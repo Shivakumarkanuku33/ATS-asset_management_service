@@ -33,8 +33,8 @@ public class AssetController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String category
-    ) {
+            @RequestParam(required = false) String category)
+    {
         return ResponseEntity.ok(assetService.getAllAssets(page, size, status, category));
     }
 
@@ -55,6 +55,13 @@ public class AssetController {
     public ResponseEntity<String> hardDelete(@PathVariable Long id) {
         assetService.hardDelete(id);
         return ResponseEntity.ok("Asset permanently deleted successfully cannot be recover");
+    }
+    
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<AssetResponse> updateStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        return ResponseEntity.ok(assetService.changeStatus(id, status));
     }
     
     }

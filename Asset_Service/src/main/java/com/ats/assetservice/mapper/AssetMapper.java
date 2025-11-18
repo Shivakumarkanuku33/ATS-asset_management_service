@@ -10,7 +10,7 @@ import com.ats.assetservice.entity.Asset;
 @Mapper(componentModel = "spring")  // MUST have this
 public interface AssetMapper {
 
-	@Mapping(target = "assetTag", ignore = true)
+//	@Mapping(target = "assetTag", ignore = true)
     Asset toEntity(AssetRequest dto);
 
     AssetResponse toResponse(Asset asset);

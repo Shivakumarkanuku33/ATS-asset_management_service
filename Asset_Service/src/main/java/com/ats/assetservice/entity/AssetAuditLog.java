@@ -1,10 +1,12 @@
 package com.ats.assetservice.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
+@Builder
 @Entity
 @Table(name = "asset_audit_logs")
 @Data
@@ -27,6 +29,7 @@ public class AssetAuditLog {
     @Column(length = 1000)
     private String newValue;
 
-    private String changedBy;       // username (from JWT)
+    private String changedBy;  
+    
     private LocalDateTime changedAt;
 }
