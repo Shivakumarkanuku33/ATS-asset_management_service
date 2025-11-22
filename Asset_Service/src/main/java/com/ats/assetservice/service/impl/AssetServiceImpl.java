@@ -1,163 +1,166 @@
 package com.ats.assetservice.service.impl;
 
+//import java.awt.print.Pageable;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+
+
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
 import com.ats.assetservice.dto.AssetRequest;
 import com.ats.assetservice.dto.AssetResponse;
+import com.ats.assetservice.dto.PaginatedResponse;
+import com.ats.assetservice.dto.StatusUpdateRequest;
 import com.ats.assetservice.entity.Asset;
 import com.ats.assetservice.entity.AssetStatus;
-import com.ats.assetservice.exception.ResourceAlreadyExistsException;
-import com.ats.assetservice.exception.ResourceNotFoundException;
-import com.ats.assetservice.mapper.AssetMapper;
 import com.ats.assetservice.repository.AssetRepository;
+import com.ats.assetservice.repository.VendorRepository;
 import com.ats.assetservice.service.AssetService;
-import com.ats.assetservice.service.AuditLogService;
+import com.ats.assetservice.specification.AssetSpecification;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AssetServiceImpl implements AssetService {
 
-	private final AssetRepository assetRepository;
-    private final AssetMapper mapper;
-    private final AuditLogService auditLogService;
+    private final AssetRepository assetRepository;
+    private final VendorRepository vendorRepository;
+    private final ModelMapper modelMapper;
+    
 
-	@Override
-	public AssetResponse createAsset(AssetRequest request) {
+    @Override
+    public AssetResponse createAsset(AssetRequest request) {
+        if (assetRepository.existsBySerialNumber(request.getSerialNumber()))
+            throw new RuntimeException("Serial number exists");
 
-		Asset asset = mapper.toEntity(request);
-		
-		// Auto-generate unique assetTag
-	    asset.setAssetTag("AST-" + UUID.randomUUID().toString().substring(0, 8));
+        Asset asset = Asset.builder()
+                .name(request.getName())
+                .serialNumber(request.getSerialNumber())
+                .category(request.getCategory())
+//                .vendor(vendorRepository.findById(request.getVendorId())
+//                        .orElseThrow(() -> new RuntimeException("Vendor not found")))
+                .status(AssetStatus.AVAILABLE)
+                .purchaseDate(request.getPurchaseDate())
+                .purchaseCost(request.getPurchaseCost())
+                .warrantyExpiry(request.getWarrantyExpiry())
+                .notes(request.getNotes())
+//                .location(null) // Location service not ready
+                .build();
 
-//		asset.setStatus("AVAILABLE");
-	    asset.setAssetStatus(AssetStatus.AVAILABLE);
+        assetRepository.save(asset);
+        return mapToResponse(asset);
+    }
 
-		asset.setCreatedAt(LocalDateTime.now());
-		asset.setUpdatedAt(LocalDateTime.now());
+    @Override
+    public AssetResponse getAsset(Long id) {
+        Asset asset = assetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Asset not found"));
+        return mapToResponse(asset);
+    }
 
-		Asset saved = assetRepository.save(asset);
+    @Override
+    public AssetResponse updateAsset(Long id, AssetRequest request) {
+        Asset asset = assetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Asset not found"));
 
-		auditLogService.logCreate(saved);
+        if (request.getName() != null) asset.setName(request.getName());
+        if (request.getCategory() != null) asset.setCategory(request.getCategory());
+        if (request.getSerialNumber() != null) asset.setSerialNumber(request.getSerialNumber());
+//        if (request.getVendorId() != null)
+//            asset.setVendor(vendorRepository.findById(request.getVendorId())
+//                    .orElseThrow(() -> new RuntimeException("Vendor not found")));
+        if (request.getPurchaseDate() != null) asset.setPurchaseDate(request.getPurchaseDate());
+        if (request.getPurchaseCost() != null) asset.setPurchaseCost(request.getPurchaseCost());
+        if (request.getWarrantyExpiry() != null) asset.setWarrantyExpiry(request.getWarrantyExpiry());
+        if (request.getNotes() != null) asset.setNotes(request.getNotes());
 
-		return mapper.toResponse(saved);
-	}
+        assetRepository.save(asset);
+        return mapToResponse(asset);
+    }
 
-	@Override
-	public AssetResponse updateAsset(Long id, AssetRequest request) {
+    @Override
+    public void deleteOrRetireAsset(Long id) {
+        Asset asset = assetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Asset not found"));
+        if (asset.getStatus() == AssetStatus.ASSIGNED)
+            throw new RuntimeException("Cannot delete assigned asset");
 
-		Asset asset = assetRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
+        asset.setStatus(AssetStatus.RETIRED);
+        assetRepository.save(asset);
+    }
 
-		auditLogService.logUpdate(asset, request);
+    @Override
+    public AssetResponse updateStatus(Long id, StatusUpdateRequest request) {
+        Asset asset = assetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Asset not found"));
+        asset.setStatus(AssetStatus.valueOf(request.getStatus()));
+        assetRepository.save(asset);
+        return mapToResponse(asset);
+    }
 
-		mapper.updateEntityFromRequest(request, asset);
-		asset.setUpdatedAt(LocalDateTime.now());
+    private AssetResponse mapToResponse(Asset asset) {
+        return AssetResponse.builder()
+                .assetId(asset.getId())
+                .name(asset.getName())
+                .serialNumber(asset.getSerialNumber())
+                .category(asset.getCategory())
+                .status(asset.getStatus())
+                .location(null) // Location not implemented
+                .vendor(AssetResponse.VendorDTO.builder()
+//                        .id(asset.getVendor().getId())
+//                        .name(asset.getVendor().getName())
+                        .build())
+                .currentAssignment(null)
+                .purchaseDate(asset.getPurchaseDate())
+                .build();
+    }
+    
+    @Override
+    public PaginatedResponse<List<AssetResponse>> getAllAssets(
+            int page,
+            int size,
+            String category,
+            String status,
+            String serialNumber,
+            Long locationId,
+            Long vendorId
+    ) {
 
-		return mapper.toResponse(assetRepository.save(asset));
-	}
+    	Pageable pageable = PageRequest.of(page - 1, size);
 
-	@Override
-	public AssetResponse getAsset(Long id) {
-		Asset asset = assetRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
+        Specification<Asset> spec =
+                AssetSpecification.filterAssets(category, status, serialNumber, locationId, vendorId);
 
-		return mapper.toResponse(asset);
-	}
+        Page<Asset> assetPage = assetRepository.findAll(spec, pageable);
 
-	@Override
-	public Page<AssetResponse> getAllAssets(int page, int size, String status, String category) {
+        List<AssetResponse> assetResponses = assetPage.getContent()
+                .stream()
+                .map(asset -> modelMapper.map(asset, AssetResponse.class))
+                .collect(Collectors.toList());
 
-		Pageable pageable = PageRequest.of(page, size);
-		Page<Asset> result = assetRepository.findAll(pageable); // fetch all assets
-//	    return result.map(mapper::toResponse);
-//		Page<Asset> result;
-
-//		Specification<Asset> spec = Specification.where(null);
-		
-		if (status != null && category != null) {
-			result = assetRepository.findAll((root, query, builder) -> builder
-					.and(builder.equal(root.get("status"), status), builder.equal(root.get("category"), category)),
-					pageable);
-		} else {
-			result = assetRepository.findAll(pageable);
-		}
-
-		return result.map(mapper::toResponse);
-	}
-
-	@Override
-	public void softDelete(Long id) {
-
-		Asset asset = assetRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
-
-		asset.setIsActive(false);
-		asset.setUpdatedAt(LocalDateTime.now());
-
-		auditLogService.logDelete(asset);
-
-		assetRepository.save(asset);
-	}
-
-	@Override
-	public void hardDelete(Long id) {
-		Asset asset = assetRepository.findById(id)
-	            .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
-
-	    auditLogService.logDelete(asset); // Optional: log the deletion
-
-	    assetRepository.delete(asset); 
-		
-	}
-
-//	@Override
-//	public AssetResponse changeStatus(Long id, String newStatus) {
-//	    Asset asset = assetRepository.findById(id)
-//	            .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
-//	    String oldStatus = asset.getStatus();
-//	    asset.setStatus(newStatus);
-//	    assetRepository.save(asset);
-//
-//	    // Log the status change
-//	    auditLogService.logUpdate(asset, AssetRequest.builder().status(newStatus).build());
-//	    return mapper.toResponse(asset);
-//	}
-
-	@Override
-    @Transactional
-    public Asset updateAssetStatus(Long assetId, String status, String description) {
-        Optional<Asset> assetOpt = assetRepository.findById(assetId);
-        if (assetOpt.isEmpty()) {
-            throw new IllegalArgumentException("Asset not found with id: " + assetId);
-        }
-
-        Asset asset = assetOpt.get();
-
-        try {
-            AssetStatus newStatus = AssetStatus.valueOf(status.trim().toUpperCase());
-            asset.setStatus(newStatus.name());
-            asset.setUpdatedAt(java.time.LocalDateTime.now());
-
-            assetRepository.save(asset);
-
-            // Log lifecycle/status change
-            auditLogService.logStatusChange(asset, description);
-
-            return asset;
-
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
-                    "Invalid status. Allowed values: AVAILABLE, IN_USE, UNDER_MAINTENANCE, RETIRED"
-            );
-        }
+        return PaginatedResponse.<List<AssetResponse>>builder()
+                .status("success")
+                .data(assetResponses)
+                .meta(
+                        PaginatedResponse.Meta.builder()
+                                .page(page)
+                                .size(size)
+                                .totalElements(assetPage.getTotalElements())
+                                .totalPages(assetPage.getTotalPages())
+                                .build()
+                )
+                .build();
     }
 }
+
+

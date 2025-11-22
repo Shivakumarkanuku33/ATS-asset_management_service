@@ -13,7 +13,7 @@ public interface AssetMapper {
 //	@Mapping(target = "assetTag", ignore = true)
     Asset toEntity(AssetRequest dto);
 
-    AssetResponse toResponse(Asset asset);
+//    AssetResponse toResponse(Asset asset);
 
     void updateEntityFromRequest(AssetRequest request, @MappingTarget Asset asset);
 }

@@ -19,39 +19,40 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-//@Builder
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
 @Entity
-@Table(name = "assets_tbl",uniqueConstraints = @UniqueConstraint(columnNames = "asset_tag"))
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
+@AllArgsConstructor
+@Builder
+@Table(name = "assets")
 public class Asset {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "asset_tag", nullable = false, unique = true)
-    private String assetTag;
-
     private String name;
     private String category;
-    private String status;
+    @Column(unique = true)
+    private String serialNumber;
+
+    @Enumerated(EnumType.STRING)
+    private AssetStatus status;
+
+//    @ManyToOne
+//    @JoinColumn(name = "vendor_id")
+//    private Vendor vendor;
+
+//    @ManyToOne
+//    @JoinColumn(name = "location_id")
+//    private Object location; // temporary null
+
     private LocalDate purchaseDate;
     private Double purchaseCost;
-    private String vendor;
-    private Integer warrantyMonths;
-    private String description;
-    
-    private Long locationId;
-
-    private Boolean isActive = true;
-    
-    @Enumerated(EnumType.STRING)
-    private AssetStatus assetStatus;
-
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDate warrantyExpiry;
+    private String notes;
 }
